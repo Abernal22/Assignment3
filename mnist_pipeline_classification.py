@@ -90,5 +90,15 @@ def run_grid_search(X_train, y_train, X_test, y_test, kernel):
     print("Confusion Matrix:")
     print(confusion_matrix(y_test, y_pred))
 
+# Run GridSearch for each kernel
+for pca_data, pca_name in zip([(X_train_pca_50, X_test_pca_50), (X_train_pca_100, X_test_pca_100), (X_train_pca_200, X_test_pca_200)], ['PCA 50', 'PCA 100', 'PCA 200']):
+    print(f"\nRunning GridSearch for {pca_name}...")
+    for kernel in ['linear', 'rbf', 'poly']:
+        run_grid_search(pca_data[0], y_train, pca_data[1], y_test, kernel)
+
+# Run GridSearch for LDA transformation
+print("\nRunning GridSearch for LDA...")
+for kernel in ['linear', 'rbf', 'poly']:
+    run_grid_search(X_train_lda, y_train, X_test_lda, y_test, kernel)
 
 
