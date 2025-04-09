@@ -51,6 +51,44 @@ print("PCA 100:", X_train_pca_100.shape, X_test_pca_100.shape)
 print("PCA 200:", X_train_pca_200.shape, X_test_pca_200.shape)
 print("LDA (max 9):", X_train_lda.shape, X_test_lda.shape)
 
+# Task 3.3: SVC with GridSearch
+def run_grid_search(X_train, y_train, X_test, y_test, kernel):
+    if kernel == 'linear':
+        param_grid = {
+            'svc__C': [0.01, 0.1, 1, 10, 100, 500, 1000, 2000]
+        }
+        svc = SVC(kernel='linear')
+
+    elif kernel == 'rbf':
+        param_grid = {
+            'svc__C': [0.1, 1, 10, 100],
+            'svc__gamma': [1e-4, 1e-3, 1e-2, 1e-1]
+        }
+        svc = SVC(kernel='rbf')
+
+    elif kernel == 'poly':
+        param_grid = {
+            'svc__C': [0.1, 1, 10],
+            'svc__gamma': [0.001, 0.01],
+            'svc__degree': [2, 3, 4]
+        }
+        svc = SVC(kernel='poly')
+
+    else:
+        raise ValueError("Unsupported kernel")
+
+    pipeline = Pipeline([
+        ('svc', svc)
+    ])
+
+    grid = GridSearchCV(pipeline, param_grid, cv=3, n_jobs=-1, verbose=1)
+    grid.fit(X_train, y_train)
+
+    print(f"\nBest parameters for {kernel} kernel:", grid.best_params_)
+    y_pred = grid.predict(X_test)
+    print(f"Accuracy ({kernel}):", accuracy_score(y_test, y_pred))
+    print("Confusion Matrix:")
+    print(confusion_matrix(y_test, y_pred))
 
 
 
