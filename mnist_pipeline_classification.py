@@ -15,16 +15,33 @@ train_labels = idx2numpy.convert_from_file("train-labels-idx1-ubyte")
 test_images = idx2numpy.convert_from_file("t10k-images-idx3-ubyte")
 test_labels = idx2numpy.convert_from_file("t10k-labels-idx1-ubyte")
 
+#Fashion
+train_imagesf = idx2numpy.convert_from_file("train-imagesf-idx3-ubyte")
+train_labelsf = idx2numpy.convert_from_file("train-labelsf-idx1-ubyte")
+test_imagesf = idx2numpy.convert_from_file("t10k-imagesf-idx3-ubyte")
+test_labelsf = idx2numpy.convert_from_file("t10k-labelsf-idx1-ubyte")
+
 # Task 2: flatten images
 X_train = train_images.reshape(train_images.shape[0], -1)
 X_test = test_images.reshape(test_images.shape[0], -1)
 y_train = train_labels
 y_test = test_labels
 
+#Fashion
+X_trainf = train_imagesf.reshape(train_imagesf.shape[0], -1)
+X_testf = test_imagesf.reshape(test_imagesf.shape[0], -1)
+y_trainf = train_labelsf
+y_testf = test_labelsf
+
 #Task 3.1 Standardization
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
+
+#fashion
+scalerf = StandardScaler()
+X_train_scaledf = scalerf.fit_transform(X_trainf)
+X_test_scaledf = scalerf.transform(X_testf)
 
 #Task 3.2: Dimensionality reduction
 # PCA examples
@@ -45,11 +62,34 @@ lda_9 = LDA(n_components=9).fit(X_train_scaled, y_train)
 X_train_lda = lda_9.transform(X_train_scaled)
 X_test_lda = lda_9.transform(X_test_scaled)
 
+#Fashion
+pca_50f = PCA(n_components=50).fit(X_train_scaledf)
+X_train_pca_50f = pca_50f.transform(X_train_scaledf)
+X_test_pca_50f = pca_50f.transform(X_test_scaledf)
+
+pca_100f = PCA(n_components=100).fit(X_train_scaledf)
+X_train_pca_100f = pca_100f.transform(X_train_scaledf)
+X_test_pca_100f = pca_100f.transform(X_test_scaledf)
+
+pca_200f = PCA(n_components=200).fit(X_train_scaledf)
+X_train_pca_200f = pca_200f.transform(X_train_scaledf)
+X_test_pca_200f = pca_200f.transform(X_test_scaledf)
+
+# LDA examples 
+lda_9f = LDA(n_components=9).fit(X_train_scaledf, y_trainf)
+X_train_ldaf = lda_9f.transform(X_train_scaledf)
+X_test_ldaf = lda_9f.transform(X_test_scaledf)
+
 
 print("PCA 50:", X_train_pca_50.shape, X_test_pca_50.shape)
 print("PCA 100:", X_train_pca_100.shape, X_test_pca_100.shape)
 print("PCA 200:", X_train_pca_200.shape, X_test_pca_200.shape)
 print("LDA (max 9):", X_train_lda.shape, X_test_lda.shape)
+
+print("PCA 50f:", X_train_pca_50f.shape, X_test_pca_50f.shape)
+print("PCA 100f:", X_train_pca_100f.shape, X_test_pca_100f.shape)
+print("PCA 200f:", X_train_pca_200f.shape, X_test_pca_200f.shape)
+print("LDA (max 9)f:", X_train_ldaf.shape, X_test_ldaf.shape)
 
 # Task 3.3: SVC with GridSearch
 def run_grid_search(X_train, y_train, X_test, y_test, kernel):
