@@ -9,6 +9,10 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score, confusion_matrix
 import gzip
 import time
+import matplotlib
+
+#There were issues with main thread not in main from graphics.
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
@@ -96,6 +100,11 @@ print("PCA 200f:", X_train_pca_200f.shape, X_test_pca_200f.shape)
 print("LDA (max 9)f:", X_train_ldaf.shape, X_test_ldaf.shape)
 
 confusion_matrices = []
+accs = []
+accuracy = []
+
+times = []
+tm = []
 
 # Task 3.3: SVC with GridSearch
 def run_grid_search(X_train, y_train, X_test, y_test, kernel, reduction):
@@ -103,14 +112,14 @@ def run_grid_search(X_train, y_train, X_test, y_test, kernel, reduction):
         param_grid = {
             'svc__C': [0.01, 1, 10, 500, 1000, 2000]
         }
-        svc = SVC(kernel='linear')
+        svc = SVC(kernel='linear', max_iter=100000)
 
     elif kernel == 'rbf':
         param_grid = {
             'svc__C': [0.1, 1, 10, 100],
             'svc__gamma': [1e-4, 1e-3, 1e-2, 1e-1]
         }
-        svc = SVC(kernel='rbf')
+        svc = SVC(kernel='rbf', max_iter=100000)
 
     elif kernel == 'poly':
         param_grid = {
@@ -118,7 +127,7 @@ def run_grid_search(X_train, y_train, X_test, y_test, kernel, reduction):
             'svc__gamma': [0.001, 0.01],
             'svc__degree': [2, 3, 4]
         }
-        svc = SVC(kernel='poly')
+        svc = SVC(kernel='poly', max_iter=100000)
 
     else:
         raise ValueError("Unsupported kernel")
@@ -134,7 +143,11 @@ def run_grid_search(X_train, y_train, X_test, y_test, kernel, reduction):
 
     print(f"\nBest parameters for {kernel} kernel:", grid.best_params_)
     y_pred = grid.predict(X_test)
-    print(f"Accuracy ({kernel}):", accuracy_score(y_test, y_pred))
+    score = accuracy_score(y_test, y_pred)
+    accuracy.append(score)
+    tm.append(end)
+    print(f"Accuracy ({kernel}):", score)
+
     print("Confusion Matrix:")
     print(confusion_matrix(y_test, y_pred))
     confusion_matrices.append((confusion_matrix(y_test, y_pred), X_test.shape, reduction, kernel))
@@ -144,7 +157,7 @@ def run_grid_search(X_train, y_train, X_test, y_test, kernel, reduction):
 def plotConfusion(matrices, set):
     for matrix, shape, red, kernel in matrices:
         classes = matrix.shape[0]
-        figure, ax = plt.subplots()
+        figure, ax = plt.subplots(figsize=(7,5))
         ax.axis('off')
         #Fill in cells with text of prediction values
         cells = [[f'{p}' for p in row] for row in matrix]
@@ -155,49 +168,105 @@ def plotConfusion(matrices, set):
         table.auto_set_font_size(False)
         table.set_fontsize(13)
         table.scale(1.1, 1.3)
-        plt.savefig(f'confusion{set}_{shape[1]}_{red}_{kernel}')
+        plt.savefig(f'confusion{set}_{shape[1]}_{red}_{kernel}', dpi=300)
         plt.close()
 
+def plotAcc(acc, set):
+    figure, ax = plt.subplots(figsize=(7,5))
+    ax.axis('off')
+    #Fill in cells with text of acc values
+    cells = [[f'{a:.2f}' for a in row] for row in acc]
+    #Each row is a set
+    rlab = ['PCA 50', 'PCA 100', 'PCA 200','FULL', 'LDA 9']
+    #columns are kernels
+    clab = ['Linear', 'RBF', 'Poly']
+    table = ax.table(cellText=cells, rowLabels=rlab, colLabels=clab, loc='center')
+    plt.title(f"{set} Accuracy")
+    table.auto_set_font_size(False)
+    table.set_fontsize(13)
+    table.scale(0.9, 1.3)
+    plt.savefig(f'set{set}_accuracy.png', dpi=300)
+    plt.close()
 
+def plotTime(times, set):
+    figure, ax = plt.subplots(figsize=(7,5))
+    ax.axis('off')
+    #Fill in cells with text of acc values
+    cells = [[f'{t:.2f}' for t in row] for row in times]
+    #Each row is a set
+    rlab = ['PCA 50', 'PCA 100', 'PCA 200', 'FULL', 'LDA 9']
+    #columns are kernels
+    clab = ['Linear', 'RBF', 'Poly']
+    table = ax.table(cellText=cells, rowLabels=rlab, colLabels=clab, loc='center')
+    plt.title(f"{set} Runtime (Seconds)")
+    table.auto_set_font_size(False)
+    table.set_fontsize(13)
+    table.scale(0.9, 1.3)
+    plt.savefig(f'set{set}_times.png', dpi=300)
+    plt.close()        
 
 maxSizeS = 60000
 maxSizeT = 10000
 
-sampSize = 500
-testSize = 50
+sampSize = 3000
+testSize = 300
 randTrain = np.random.choice(maxSizeS, sampSize, replace=False)
 randTest = np.random.choice(maxSizeT, testSize, replace=False)
 # Run GridSearch for each kernel
-for pca_data, pca_name in zip([(X_train_pca_50, X_test_pca_50), (X_train_pca_100, X_test_pca_100), (X_train_pca_200, X_test_pca_200)], ['PCA 50', 'PCA 100', 'PCA 200']):
+for pca_data, pca_name in zip([(X_train_pca_50, X_test_pca_50), (X_train_pca_100, X_test_pca_100), (X_train_pca_200, X_test_pca_200), (X_train_scaled, X_test_scaled)], ['PCA 50', 'PCA 100', 'PCA 200', 'FULL']):
     print(f"\nRunning GridSearch for {pca_name}...")
     dtrain = pca_data[0]
     dtest = pca_data[1]
+    accuracy = []
+    tm = []
     for kernel in ['linear', 'rbf', 'poly']:
         run_grid_search(dtrain[randTrain], y_train[randTrain], dtest[randTest], y_test[randTest], kernel, 'PCA')
+    accs.append(accuracy)
+    times.append(tm)    
 
 
 # Run GridSearch for LDA transformation
 print("\nRunning GridSearch for LDA...")
+accuracy = []
+tm = []
 for kernel in ['linear', 'rbf', 'poly']:
     run_grid_search(X_train_lda[randTrain], y_train[randTrain], X_test_lda[randTest], y_test[randTest], kernel, 'LDA')
+accs.append(accuracy)
+times.append(tm) 
+
 
 plotConfusion(confusion_matrices, 'MNIST')
+plotAcc(accs, 'MNIST')
+plotTime(times, 'MNIST')
+
 confusion_matrices = []
+accs = []
+times = []
 
 #Grid search for mnist fashion.
-for pca_data, pca_name in zip([(X_train_pca_50f, X_test_pca_50f), (X_train_pca_100f, X_test_pca_100f), (X_train_pca_200f, X_test_pca_200f)], ['PCA 50', 'PCA 100', 'PCA 200']):
+for pca_data, pca_name in zip([(X_train_pca_50f, X_test_pca_50f), (X_train_pca_100f, X_test_pca_100f), (X_train_pca_200f, X_test_pca_200f), (X_train_scaledf, X_test_scaledf)], ['PCA 50', 'PCA 100', 'PCA 200', 'FULL']):
     print(f"\nRunning GridSearch for {pca_name}...")
     dtrain = pca_data[0]
     dtest = pca_data[1]
+    accuracy = []
+    tm = []
     for kernel in ['linear', 'rbf', 'poly']:
         run_grid_search(dtrain[randTrain], y_trainf[randTrain], dtest[randTest], y_testf[randTest], kernel, 'PCA')
+    accs.append(accuracy)
+    times.append(tm)          
 
 # Run GridSearch for LDA transformation
 print("\nRunning GridSearch for LDA...")
+accuracy = []
+tm = []
 for kernel in ['linear', 'rbf', 'poly']:
     run_grid_search(X_train_ldaf[randTrain], y_trainf[randTrain], X_test_ldaf[randTest], y_testf[randTest], kernel, 'LDA')
+accs.append(accuracy)
+times.append(tm)
 
 plotConfusion(confusion_matrices, "Fashion-MNIST")
+plotAcc(accs, "Fashion-MNIST")
+plotTime(times, "Fashion-MNIST")
    
 
 
